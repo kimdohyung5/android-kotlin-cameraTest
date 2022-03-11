@@ -1,0 +1,44 @@
+<html>
+<head>
+    <style>
+        body {
+            font: 50px 'Helvetica Neue', Helvetica, Arial, freesans, clean, sans-serif;
+        }
+    </style>
+  <script>
+    let script = document.createElement('script');
+    script.src = "https://cdn.jsdelivr.net/npm/mathpix-markdown-it@1.0.40/es5/bundle.js";
+    document.head.append(script);
+
+    script.onload = function() {
+      const isLoaded = window.loadMathJax();
+      if (isLoaded) {
+        console.log('Styles loaded!')
+      }
+	  //convertA()
+    }
+	const text = '\\begin{tabular}{rr} (6) 970 \\\\\\( -\\quad 2 \\) \\\\\\hline\\end{tabular}';
+	function convert( input ) {
+      const output = document.getElementById('output');
+      output.innerHTML = '';
+
+      const options = {
+        htmlTags: true
+      };
+      const html = window.markdownToHTML(input, options);
+      output.innerHTML = html;
+    }
+	function convertA() {
+		convert( text )
+	}
+	</script>
+  <style>
+    #output {
+      max-width: 100%;
+    }
+  </style>
+</head>
+<body>
+<div id="output"></div>
+</body>
+</html>
