@@ -11,8 +11,8 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="fitXY"
-        tools:layout_editor_absoluteX="16dp"
-        tools:layout_editor_absoluteY="10dp" />
+        tools:layout_editor_absoluteX="0dp"
+        tools:layout_editor_absoluteY="0dp" />
 
     <Button
         android:id="@+id/button_close_crop"
@@ -25,14 +25,24 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <Button
-        android:id="@+id/button_crop"
+        android:id="@+id/button_crop_v1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="10dp"
-        android:text="짜르기"
+        android:text="짜르기(v1)"
+        app:layout_constraintBottom_toBottomOf="@+id/imageviewResult"
+        app:layout_constraintEnd_toStartOf="@id/button_crop_v2"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/button_crop_v2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:text="짜르기(v2)"
         app:layout_constraintBottom_toBottomOf="@+id/imageviewResult"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toEndOf="@+id/button_crop_v1" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

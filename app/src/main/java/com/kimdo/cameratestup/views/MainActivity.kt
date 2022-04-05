@@ -1,6 +1,7 @@
 package com.kimdo.cameratestup.views
 
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
@@ -9,28 +10,24 @@ import android.os.Build
 import android.os.Bundle
 
 import android.util.Log
-import android.view.View
 import android.webkit.*
+import android.widget.Toast
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
-import com.kimdo.cameratestup.MyApplication
 import com.kimdo.cameratestup.databinding.ActivityMainBinding
 import com.kimdo.cameratestup.models.InputInfo
-import com.kimdo.cameratestup.models.LoginResponse
-import com.kimdo.cameratestup.network.RetrofitClient
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
 
 import com.kimdo.cameratestup.R
 import com.kimdo.cameratestup.models.RecogResponse
+import com.kimdo.cameratestup.utils.Constants
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding:ActivityMainBinding
-    private val TAG:String = "MainActivity"
 
     private var imagepath:String = ""
 
@@ -39,25 +36,23 @@ class MainActivity : AppCompatActivity() {
     private var ocr_result:String = ""
     private var rec_result:String = ""
 
+
     private val startCameraForResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         result: ActivityResult ->
 
 
-        if( MyApplication.instance.regcogResponse != null ) {
-            val regcogResponse = MyApplication.instance.regcogResponse!!
-            MyApplication.instance.regcogResponse = null
-//            ocr_bodystring = MyApplication.instance.bodystring?:""
-//            Log.i(TAG, "WebViewActivity.kt MyApplication.instance.bodystring=${ocr_bodystring}")
-//            MyApplication.instance.bodystring = null
-
-            imagepath = MyApplication.instance.imagepath!!
-            MyApplication.instance.imagepath = null
+        if( Constants.regcogResponse != null ) {
+            val regcogResponse = Constants.regcogResponse!!
+            Constants.regcogResponse = null
+            imagepath = Constants.imagepath!!
+            Constants.imagepath = null
 
             displayResult(regcogResponse)
         }
     }
 
 
+    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -66,7 +61,6 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnDebugging.setOnClickListener {
             val intent = Intent(this, CameraActivity::class.java)
-
             startCameraForResult.launch( intent )
         }
 
@@ -77,53 +71,14 @@ class MainActivity : AppCompatActivity() {
         localFontSize = resources.getDimensionPixelSize(R.dimen.localFontSize).toFloat()
 
         binding.webview.apply {
+
             settings.javaScriptEnabled = true
-            //검토
-            setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
-            // Enable and setup web view cache
-            settings.setAppCacheEnabled(false)
-            settings.cacheMode = WebSettings.LOAD_NO_CACHE
-
-            settings.setAppCachePath(cacheDir.path)
-            // Enable zooming in web view
-            settings.setSupportZoom(true)
-            settings.builtInZoomControls = true
-            settings.displayZoomControls = false
-            // Enable disable images in web view
-            settings.blockNetworkImage = false
-            // Whether the WebView should load image resources
-            settings.loadsImagesAutomatically = true
-
-            settings.domStorageEnabled = true
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                settings.safeBrowsingEnabled = true  // api 26
-            }
-
-            //검토
-            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O) {
-                settings.setRenderPriority(WebSettings.RenderPriority.HIGH)
-                settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.SINGLE_COLUMN)
-                settings.setEnableSmoothTransition(true)
-            }
-
-            //settings.pluginState = WebSettings.PluginState.ON
             settings.useWideViewPort = true
             settings.loadWithOverviewMode = true
             settings.javaScriptCanOpenWindowsAutomatically = true
             settings.mediaPlaybackRequiresUserGesture = false
 
-            // More optional settings, you can enable it by yourself
-            settings.domStorageEnabled = true
-            settings.setSupportMultipleWindows(true)
-            settings.allowContentAccess = true
-            settings.setGeolocationEnabled(true)
-            settings.allowUniversalAccessFromFileURLs = true
-
-            settings.allowFileAccess = true
-
-            // WebView settings
-            fitsSystemWindows = true
             webViewClient = MyWebViewClient(this@MainActivity)
             webChromeClient = object : WebChromeClient() {
                 override fun onJsAlert(
@@ -177,7 +132,7 @@ class MainActivity : AppCompatActivity() {
         paint.textSize = localFontSize
         paint.setShadowLayer(1F, 0F, 1F, Color.BLACK)
 
-        var rc: Rect = Rect()
+        val rc: Rect = Rect()
         paint.getTextBounds(text, 0, text.length, rc)
         canvas.drawText(text, x, y +  rc.height(), paint)
     }
@@ -206,11 +161,17 @@ class MainActivity : AppCompatActivity() {
 
         binding.txtOcrresult.setText("")
         binding.txtRecresult.setText("")
-        var bitmap: Bitmap = BitmapFactory.decodeFile( imagepath )
-        var copied: Bitmap = bitmap.copy( Bitmap.Config.ARGB_8888, true)
+        val bitmap: Bitmap = BitmapFactory.decodeFile( imagepath )
+        val copied: Bitmap = bitmap.copy( Bitmap.Config.ARGB_8888, true)
         val canvas = Canvas(copied)
 
         val objOcrresult = recogResponse.ocrresult
+
+        if( objOcrresult.text == null) {
+            Toast.makeText(this, "objOcrresult.text = null 입니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val tex_result = objOcrresult.text ?.replace("\\", "\\\\").replace("\n", "\\n") ?: ""
 
         Log.d("retrofit","objOcrresult : ${ objOcrresult.toString() }")
@@ -226,7 +187,7 @@ class MainActivity : AppCompatActivity() {
 
         awsurl = recogResponse.fulls3path
 
-        var recResult = objRecresult.result
+        val recResult = objRecresult.result
         val recPercent = objRecresult.percent
         Log.d("retrofit","recPercent : ${ recPercent }")
 
@@ -243,7 +204,7 @@ class MainActivity : AppCompatActivity() {
 
             val cnt = innerObj.cnt
             val cntArray = ArrayList<PointF>()
-            var ptMinimum = PointF(100000F, 100000F)
+            val ptMinimum = PointF(100000F, 100000F)
             for( j in 0 until cnt.size) {
                 val insideValue = cnt.get(j)
                 val ptValue = PointF( insideValue.get(0).toFloat(), insideValue.get(1).toFloat() )
@@ -252,7 +213,7 @@ class MainActivity : AppCompatActivity() {
                 cntArray.add( ptValue )
             }
             val text = innerObj.text
-            var localT = binding.txtOcrresult.text.toString()  + text
+            val localT = binding.txtOcrresult.text.toString()  + text
             binding.txtOcrresult.setText( localT )
             var insideIndex:Int = 0
             for( inner in text.split("\n") ) {
@@ -273,35 +234,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun dataSendTest() {
-        val inputInfo = InputInfo("id", "password")
-        RetrofitClient.instance.postLogin( inputInfo )
-            .enqueue(object: Callback<LoginResponse> {
-                override fun onResponse(
-                    call: Call<LoginResponse>,
-                    response: Response<LoginResponse>
-                ) {
-                    if( response.isSuccessful.not()) {
-                        Log.d(TAG, "response.isSuccessful is not " + response.toString() )
-                        return
-                    }
-                    response.body()?.let {
-                        val loginResponse = response.body()
-                        Log.d(TAG, "loginResult=" + loginResponse)
-                    }
-                }
+        Toast.makeText(this, "구현되지 않았어요.", Toast.LENGTH_SHORT).show()
 
-                override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
-                    Log.d(TAG, "error:::")
-                }
-            })
-    }
-    private fun getOCR_Report() {
-        Log.d(TAG,"getOCR_Report is called.")
+
     }
 
-
-
-    class MyWebViewClient internal constructor(private val activity: Activity) : WebViewClient() {
+    class MyWebViewClient (private val activity: Activity) : WebViewClient() {
         private var showFlag = false
 
         @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
@@ -310,17 +248,14 @@ class MainActivity : AppCompatActivity() {
             request: WebResourceRequest?
         ): Boolean {
             val url: String = request?.url.toString()
-//Log.e("SHOULDOVERRIDEURLLOA","LOLLIPOP $url")
             view?.loadUrl(url)
             return true
         }
 
         override fun shouldOverrideUrlLoading(webView: WebView, url: String): Boolean {
-//Log.e("SHOULDOVERRIDEURLLOA","$url")
             webView.loadUrl(url)
             return true
         }
-
 
         @RequiresApi(Build.VERSION_CODES.M)
         override fun onReceivedError(
@@ -328,7 +263,6 @@ class MainActivity : AppCompatActivity() {
             request: WebResourceRequest,
             error: WebResourceError
         ) {
-//Log.e("webview", "GOT Page error : code : " + error.errorCode + " Desc : " + error.description)
             if (!showFlag) {
                 showFlag = true
                 showError(error.errorCode)

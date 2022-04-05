@@ -16,11 +16,14 @@ import android.view.WindowInsetsController
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.constraintlayout.widget.ConstraintLayout
-import com.kimdo.cameratestup.MyApplication
+
 import com.kimdo.cameratestup.R
-import com.kimdo.cameratestup.models.RecogResponse
-import com.kimdo.cameratestup.network.RetrofitClient
+
+import com.kimdo.cameratestup.utils.Constants
+import com.kimdo.cameratestup.viewmodel.CropActivityViewModel
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -28,22 +31,20 @@ import kotlinx.coroutines.launch
 import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
-import retrofit2.Retrofit
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.IOException
 
+@AndroidEntryPoint
 class CropActivity : AppCompatActivity() {
 
     private lateinit var mCropBox: CropBox
     private lateinit var mLayout : ConstraintLayout
     private var mImagePath:String?= null
     private var mFromWhere:String?= null
-    lateinit var retrofit : Retrofit
+
+    private val cropActivityViewModel: CropActivityViewModel by viewModels()
 
     private fun hideSystemUI() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -100,29 +101,54 @@ class CropActivity : AppCompatActivity() {
             }
         )
 
-        val btnCrop: Button = findViewById(R.id.button_crop)
-        btnCrop.setOnClickListener {
-            val bitmap = BitmapFactory.decodeFile( mImagePath )
-            val koefX =  bitmap.width.toFloat() / imageView.width.toFloat()
-            val koefY =  bitmap.height.toFloat() / imageView.height.toFloat()
+        val btnCropV1: Button = findViewById(R.id.button_crop_v1)
+        btnCropV1.setOnClickListener {
+            processAfterCrop( getCroppedBitmap(), "v1")
+        }
+        val btnCropV2: Button = findViewById(R.id.button_crop_v2)
+        btnCropV2.setOnClickListener {
+            processAfterCrop( getCroppedBitmap(), "v2")
+        }
 
 
-            val cropStartX = Math.round(mCropBox.rect.left * koefX)
-            val cropStartY = Math.round(mCropBox.rect.top * koefY)
-            val cropWidthX = Math.round(mCropBox.rect.width() * koefX)
-            val cropHeightY = Math.round(mCropBox.rect.height() * koefY)
-
-            var croppedBitmap: Bitmap? = null
-            if (cropStartX + cropWidthX <= bitmap.width && cropStartY + cropHeightY <= bitmap.height &&
-                cropStartX > 0 && cropStartY > 0
-            ) {
-                croppedBitmap = Bitmap.createBitmap(bitmap, cropStartX, cropStartY, cropWidthX, cropHeightY)
+        cropActivityViewModel.recog.observe(this) { result ->
+            Log.d(TAG, "cropActivityViewModel.recog: ${result.toString()}")
+            if( result.isLoading ) {
+                Log.d(TAG, "cropActivityViewModel.recog: result.isLoading = true")
             }
-            processAfterCrop( croppedBitmap )
+            if( result.error.isNotEmpty()) {
+                Log.d(TAG, "cropActivityViewModel.recog: result.error = ${result.error}")
+            }
+            if( result.response != null) {
+                Log.d(TAG, "cropActivityViewModel.recog: success ${result.response.code}")
+                Constants.regcogResponse = result.response
+                finish()
+            }
         }
     }
 
-    private fun processAfterCrop( croppedBitmap: Bitmap?) {
+    private fun getCroppedBitmap():Bitmap? {
+        val imageView: ImageView = findViewById(R.id.imageviewResult)
+        val bitmap = BitmapFactory.decodeFile( mImagePath )
+        val koefX =  bitmap.width.toFloat() / imageView.width.toFloat()
+        val koefY =  bitmap.height.toFloat() / imageView.height.toFloat()
+
+
+        val cropStartX = Math.round(mCropBox.rect.left * koefX)
+        val cropStartY = Math.round(mCropBox.rect.top * koefY)
+        val cropWidthX = Math.round(mCropBox.rect.width() * koefX)
+        val cropHeightY = Math.round(mCropBox.rect.height() * koefY)
+
+        var croppedBitmap: Bitmap? = null
+        if (cropStartX + cropWidthX <= bitmap.width && cropStartY + cropHeightY <= bitmap.height &&
+            cropStartX > 0 && cropStartY > 0
+        ) {
+            croppedBitmap = Bitmap.createBitmap(bitmap, cropStartX, cropStartY, cropWidthX, cropHeightY)
+        }
+        return croppedBitmap
+    }
+
+    private fun processAfterCrop( croppedBitmap: Bitmap?, version:String) {
         if( croppedBitmap != null ) {
             CoroutineScope(Dispatchers.Main).launch {
                 var returnValue  = ""
@@ -153,53 +179,40 @@ class CropActivity : AppCompatActivity() {
                         e.printStackTrace()
                     }
                 }.await()
-                this@CropActivity.saveCallback(returnValue)
+                this@CropActivity.saveCallback(returnValue, version)
             }
         } else {
-            saveCallback(null );
+            saveCallback(null , version);
         }
     }
 
-    private fun getOCR_Result( imagepath:String ) {
+    private fun getOCR_Result( imagepath:String, version:String ) {
 
-        val ocrAPI = RetrofitClient.instance
         val file  = File(imagepath)
         val fileBody: RequestBody = RequestBody.create(MediaType.parse("image/*"), file)
         val filePart = MultipartBody.Part.createFormData("file", file.name, fileBody)
 
-        Runnable {
-            ocrAPI.getOCR_Result(filePart, "LRN19001231123456789" ).enqueue(object :
-                Callback<RecogResponse> {
-                override fun onFailure(call: Call<RecogResponse>, t: Throwable) {
-                    Log.d("retrofit",t.message?.toString()!!)
-                }
+        Constants.imagepath = imagepath
 
-                override fun onResponse(call: Call<RecogResponse>, response: Response<RecogResponse>) {
-                    Log.d("retrofit","response : ${response.body()}")
-
-
-                    if( response.body() == null) {
-                        Log.i("kkkk", "서버의 ocr 결과값이 null입니다. 서버를 기동시켜주세요...")
-                        Log.i("kkkk", "서버의 ocr 결과값이 null입니다. 서버를 기동시켜주세요...")
-                        Log.i("kkkk", "서버의 ocr 결과값이 null입니다. 서버를 기동시켜주세요...")
-                        finish()
-                    } else {
-                        MyApplication.instance.regcogResponse = response.body()
-                        MyApplication.instance.imagepath = imagepath
-                        finish()
-                    }
-                }
-            })
-        }.run()
+        if( version == "v1") {
+            cropActivityViewModel.ocrResultV1(filePart, "LRN19001231123456789")
+        }
+        if( version == "v2") {
+            cropActivityViewModel.ocrResultV2(filePart, "LRN19001231123456789")
+        }
     }
-    fun saveCallback(filepath: String?){
+    private fun saveCallback(filepath: String?, version:String ){
         if(filepath == null) {
             Toast.makeText(this, "먼저 영역을 선택하세요.", Toast.LENGTH_LONG).show()
             return
         }
         // 준비영상을 뿌려주고 시작을 한다.
 //        Toast.makeText(this, "이제 인식중입니다. ${filepath}", Toast.LENGTH_LONG).show()
-        getOCR_Result( filepath )
+        getOCR_Result( filepath, version )
     }
 
+
+    companion object {
+        const val TAG = "CropActivity"
+    }
 }

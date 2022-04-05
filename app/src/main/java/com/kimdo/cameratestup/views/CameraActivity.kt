@@ -25,6 +25,7 @@ import androidx.core.content.ContextCompat
 import com.google.android.material.snackbar.Snackbar
 import com.kimdo.cameratestup.MyApplication
 import com.kimdo.cameratestup.R
+import com.kimdo.cameratestup.utils.Constants
 import java.io.File
 import java.io.FileOutputStream
 
@@ -118,7 +119,7 @@ class CameraActivity: AppCompatActivity()
 
         val btnHistory: Button = findViewById(R.id.button_history)
         btnHistory.setOnClickListener(View.OnClickListener {
-            MyApplication.instance.gotoWhere = "history"
+            Constants.gotoWhere = "history"
             finish()
         })
 
